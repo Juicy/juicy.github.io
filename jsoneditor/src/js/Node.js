@@ -164,6 +164,7 @@ Node.prototype.setError = function (error, child) {
     popover.appendChild(document.createTextNode(error.message));
 
     var button = document.createElement('button');
+    button.type = 'button';
     button.className = 'jsoneditor-schema-error';
     button.appendChild(popover);
 
@@ -372,10 +373,10 @@ Node.prototype.getLevel = function() {
 };
 
 /**
- * Get path of the root node till the current node
+ * Get jsonpath of the current node
  * @return {Node[]} Returns an array with nodes
  */
-Node.prototype.getNodePath = function() {
+Node.prototype.getNodePath = function () {
   var path = this.parent ? this.parent.getNodePath() : [];
   path.push(this);
   return path;
@@ -535,6 +536,20 @@ Node.prototype.hideChilds = function() {
   this.childs.forEach(function (child) {
     child.hide();
   });
+};
+
+
+/**
+ * Goes through the path from the node to the root and ensures that it is expanded
+ */
+Node.prototype.expandTo = function() {
+  var currentNode = this.parent;
+  while (currentNode) {
+    if (!currentNode.expanded) {
+      currentNode.expand();
+    }
+    currentNode = currentNode.parent;
+  }
 };
 
 
@@ -855,7 +870,11 @@ Node.prototype.focus = function(elementName) {
 
       case 'value':
       default:
-        if (dom.value && !this._hasChilds()) {
+        if (dom.select) {
+          // enum select box
+          dom.select.focus();
+        }
+        else if (dom.value && !this._hasChilds()) {
           dom.value.focus();
           util.selectContentEditable(dom.value);
         }
@@ -1416,7 +1435,7 @@ Node.prototype.validate = function () {
     var duplicateKeys = [];
     for (var i = 0; i < this.childs.length; i++) {
       var child = this.childs[i];
-      if (keys[child.field]) {
+      if (keys.hasOwnProperty(child.field)) {
         duplicateKeys.push(child.field);
       }
       keys[child.field] = true;
@@ -1485,6 +1504,7 @@ Node.prototype.getDom = function() {
       // create draggable area
       if (this.parent) {
         var domDrag = document.createElement('button');
+        domDrag.type = 'button';
         dom.drag = domDrag;
         domDrag.className = 'jsoneditor-dragarea';
         domDrag.title = 'Drag to move this field (Alt+Shift+Arrows)';
@@ -1496,6 +1516,7 @@ Node.prototype.getDom = function() {
     // create context menu
     var tdMenu = document.createElement('td');
     var menu = document.createElement('button');
+    menu.type = 'button';
     dom.menu = menu;
     menu.className = 'jsoneditor-contextmenu';
     menu.title = 'Click to open the actions menu (Ctrl+M)';
@@ -1991,7 +2012,9 @@ Node.prototype._updateSchema = function () {
   //Locating the schema of the node and checking for any enum type
   if(this.editor && this.editor.options) {
     // find the part of the json schema matching this nodes path
-    this.schema = Node._findSchema(this.editor.options.schema, this.getPath());
+    this.schema = this.editor.options.schema 
+        ? Node._findSchema(this.editor.options.schema, this.getPath())
+        : null;
     if (this.schema) {
       this.enum = Node._findEnum(this.schema);
     }
@@ -2033,18 +2056,46 @@ Node._findEnum = function (schema) {
  */
 Node._findSchema = function (schema, path) {
   var childSchema = schema;
+  var foundSchema = childSchema;
 
-  for (var i = 0; i < path.length && childSchema; i++) {
-    var key = path[i];
-    if (typeof key === 'string' && childSchema.properties) {
-      childSchema = childSchema.properties[key] || null
-    }
-    else if (typeof key === 'number' && childSchema.items) {
-      childSchema = childSchema.items
-    }
+  var allSchemas = schema.oneOf || schema.anyOf || schema.allOf;
+  if (!allSchemas) {
+    allSchemas = [schema];
   }
 
-  return childSchema
+  for (var j = 0; j < allSchemas.length; j++) {
+    childSchema = allSchemas[j];
+
+    for (var i = 0; i < path.length && childSchema; i++) {
+      var key = path[i];
+
+      if (typeof key === 'string' && childSchema.patternProperties && i == path.length - 1) {
+        for (var prop in childSchema.patternProperties) {
+          foundSchema = Node._findSchema(childSchema.patternProperties[prop], path.slice(i, path.length));
+        }
+      }
+      else if (childSchema.items && childSchema.items.properties) {
+        childSchema = childSchema.items.properties[key];
+        if (childSchema) {
+          foundSchema = Node._findSchema(childSchema, path.slice(i, path.length));
+        }
+      }
+      else if (typeof key === 'string' && childSchema.properties) {
+        childSchema = childSchema.properties[key] || null;
+        if (childSchema) {
+          foundSchema = Node._findSchema(childSchema, path.slice(i, path.length));
+        }
+      }
+      else if (typeof key === 'number' && childSchema.items) {
+        childSchema = childSchema.items;
+        if (childSchema) {
+          foundSchema = Node._findSchema(childSchema, path.slice(i, path.length));
+        }
+      }
+    }
+
+  }
+  return foundSchema
 };
 
 /**
@@ -2100,7 +2151,6 @@ Node.prototype._createDomValue = function () {
       // create a link in case of read-only editor and value containing an url
       domValue = document.createElement('a');
       domValue.href = this.value;
-      domValue.target = '_blank';
       domValue.innerHTML = this._escapeHTML(this.value);
     }
     else {
@@ -2123,6 +2173,7 @@ Node.prototype._createDomValue = function () {
 Node.prototype._createDomExpandButton = function () {
   // create expand button
   var expand = document.createElement('button');
+  expand.type = 'button';
   if (this._hasChilds()) {
     expand.className = this.expanded ? 'jsoneditor-expanded' : 'jsoneditor-collapsed';
     expand.title =
@@ -2276,8 +2327,10 @@ Node.prototype.onEvent = function (event) {
         break;
 
       case 'click':
-        if (event.ctrlKey || !this.editable.value) {
+        if (event.ctrlKey && this.editable.value) {
+          // if read-only, we use the regular click behavior of an anchor
           if (util.isUrl(this.value)) {
+            event.preventDefault();
             window.open(this.value, '_blank');
           }
         }
@@ -3167,6 +3220,32 @@ Node.TYPE_TITLES = {
       'but always returned as string.'
 };
 
+Node.prototype.addTemplates = function (menu, append) {
+    var node = this;
+    var templates = node.editor.options.templates;
+    if (templates == null) return;
+    if (templates.length) {
+        // create a separator
+        menu.push({
+            'type': 'separator'
+        });
+    }
+    var appendData = function (name, data) {
+        node._onAppend(name, data);
+    };
+    var insertData = function (name, data) {
+        node._onInsertBefore(name, data);
+    };
+    templates.forEach(function (template) {
+        menu.push({
+            text: template.text,
+            className: (template.className || 'jsoneditor-type-object'),
+            title: template.title,
+            click: (append ? appendData.bind(this, template.field, template.value) : insertData.bind(this, template.field, template.value))
+        });
+    });
+};
+
 /**
  * Show a contextmenu for this node
  * @param {HTMLElement} anchor   Anchor element to attach the context menu to
@@ -3266,52 +3345,91 @@ Node.prototype.showContextMenu = function (anchor, onClose) {
     // create append button (for last child node only)
     var childs = node.parent.childs;
     if (node == childs[childs.length - 1]) {
-      items.push({
-        text: 'Append',
-        title: 'Append a new field with type \'auto\' after this field (Ctrl+Shift+Ins)',
-        submenuTitle: 'Select the type of the field to be appended',
-        className: 'jsoneditor-append',
-        click: function () {
-          node._onAppend('', '', 'auto');
-        },
-        submenu: [
-          {
+        var appendSubmenu = [
+            {
+                text: 'Auto',
+                className: 'jsoneditor-type-auto',
+                title: titles.auto,
+                click: function () {
+                    node._onAppend('', '', 'auto');
+                }
+            },
+            {
+                text: 'Array',
+                className: 'jsoneditor-type-array',
+                title: titles.array,
+                click: function () {
+                    node._onAppend('', []);
+                }
+            },
+            {
+                text: 'Object',
+                className: 'jsoneditor-type-object',
+                title: titles.object,
+                click: function () {
+                    node._onAppend('', {});
+                }
+            },
+            {
+                text: 'String',
+                className: 'jsoneditor-type-string',
+                title: titles.string,
+                click: function () {
+                    node._onAppend('', '', 'string');
+                }
+            }
+        ];
+        node.addTemplates(appendSubmenu, true);
+        items.push({
+            text: 'Append',
+            title: 'Append a new field with type \'auto\' after this field (Ctrl+Shift+Ins)',
+            submenuTitle: 'Select the type of the field to be appended',
+            className: 'jsoneditor-append',
+            click: function () {
+                node._onAppend('', '', 'auto');
+            },
+            submenu: appendSubmenu
+        });
+    }
+
+
+
+    // create insert button
+    var insertSubmenu = [
+        {
             text: 'Auto',
             className: 'jsoneditor-type-auto',
             title: titles.auto,
             click: function () {
-              node._onAppend('', '', 'auto');
+                node._onInsertBefore('', '', 'auto');
             }
-          },
-          {
+        },
+        {
             text: 'Array',
             className: 'jsoneditor-type-array',
             title: titles.array,
             click: function () {
-              node._onAppend('', []);
+                node._onInsertBefore('', []);
             }
-          },
-          {
+        },
+        {
             text: 'Object',
             className: 'jsoneditor-type-object',
             title: titles.object,
             click: function () {
-              node._onAppend('', {});
+                node._onInsertBefore('', {});
             }
-          },
-          {
+        },
+        {
             text: 'String',
             className: 'jsoneditor-type-string',
             title: titles.string,
             click: function () {
-              node._onAppend('', '', 'string');
+                node._onInsertBefore('', '', 'string');
             }
-          }
-        ]
-      });
-    }
-
-    // create insert button
+        }
+    ];
+    node.addTemplates(insertSubmenu, false);
     items.push({
       text: 'Insert',
       title: 'Insert a new field with type \'auto\' before this field (Ctrl+Ins)',
@@ -3320,40 +3438,7 @@ Node.prototype.showContextMenu = function (anchor, onClose) {
       click: function () {
         node._onInsertBefore('', '', 'auto');
       },
-      submenu: [
-        {
-          text: 'Auto',
-          className: 'jsoneditor-type-auto',
-          title: titles.auto,
-          click: function () {
-            node._onInsertBefore('', '', 'auto');
-          }
-        },
-        {
-          text: 'Array',
-          className: 'jsoneditor-type-array',
-          title: titles.array,
-          click: function () {
-            node._onInsertBefore('', []);
-          }
-        },
-        {
-          text: 'Object',
-          className: 'jsoneditor-type-object',
-          title: titles.object,
-          click: function () {
-            node._onInsertBefore('', {});
-          }
-        },
-        {
-          text: 'String',
-          className: 'jsoneditor-type-string',
-          title: titles.string,
-          click: function () {
-            node._onInsertBefore('', '', 'string');
-          }
-        }
-      ]
+      submenu: insertSubmenu
     });
 
     if (this.editable.field) {
