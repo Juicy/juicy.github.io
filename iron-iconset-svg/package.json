@@ -1,10 +1,10 @@
 {
-  "name": "@polymer/iron-ajax",
+  "name": "@polymer/iron-iconset-svg",
   "private": true,
-  "description": "Makes it easy to make ajax calls and parse the response",
+  "description": "Manages a set of svg icons",
   "repository": {
     "type": "git",
-    "url": "git://github.com/PolymerElements/iron-ajax.git"
+    "url": "git://github.com/PolymerElements/iron-iconset-svg.git"
   },
   "license": "BSD-3-Clause",
   "devDependencies": {
