@@ -1,5 +1,6 @@
 {
   "name": "JuicyDeps",
+  "private": true,
   "dependencies": {
     "polymer": "^2.5.0",
     "jsoneditor": "^5.13.3",
