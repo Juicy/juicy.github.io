@@ -5,9 +5,11 @@ var Highlighter = require('./Highlighter');
 var History = require('./History');
 var SearchBox = require('./SearchBox');
 var ContextMenu = require('./ContextMenu');
+var TreePath = require('./TreePath');
 var Node = require('./Node');
 var ModeSwitcher = require('./ModeSwitcher');
 var util = require('./util');
+var autocomplete = require('./autocomplete');
 
 // create a mixin with the functions for tree mode
 var treemode = {};
@@ -50,6 +52,9 @@ treemode.create = function (container, options) {
   this.focusTarget = null;
 
   this._setOptions(options);
+
+  if (options.autocomplete)
+      this.autocomplete = new autocomplete(options.autocomplete);
 
   if (this.options.history && this.options.mode !== 'view') {
     this.history = new History(this);
@@ -107,7 +112,10 @@ treemode._setOptions = function (options) {
     history: true,
     mode: 'tree',
     name: undefined,   // field name of root node
-    schema: null
+    schema: null,
+    schemaRefs: null,
+    autocomplete: null,
+    navigationBar : true
   };
 
   // copy all options
@@ -120,7 +128,7 @@ treemode._setOptions = function (options) {
   }
 
   // compile a JSON schema validator if a JSON schema is provided
-  this.setSchema(this.options.schema);
+  this.setSchema(this.options.schema, this.options.schemaRefs);
 
   // create a debounced validate function
   this._debouncedValidate = util.debounce(this.validate.bind(this), this.DEBOUNCE_INTERVAL);
@@ -210,7 +218,16 @@ treemode.getText = function() {
  * @param {String} jsonText
  */
 treemode.setText = function(jsonText) {
-  this.set(util.parse(jsonText));
+  try {
+    this.set(util.parse(jsonText)); // this can throw an error
+  }
+  catch (err) {
+    // try to sanitize json, replace JavaScript notation with JSON notation
+    var sanitizedJsonText = util.sanitize(jsonText);
+
+    // try to parse again
+    this.set(util.parse(sanitizedJsonText)); // this can throw an error
+  }
 };
 
 /**
@@ -676,6 +693,7 @@ treemode._createFrame = function () {
 
   // create expand all button
   var expandAll = document.createElement('button');
+  expandAll.type = 'button';
   expandAll.className = 'jsoneditor-expand-all';
   expandAll.title = 'Expand all fields';
   expandAll.onclick = function () {
@@ -683,8 +701,9 @@ treemode._createFrame = function () {
   };
   this.menu.appendChild(expandAll);
 
-  // create expand all button
+  // create collapse all button
   var collapseAll = document.createElement('button');
+  collapseAll.type = 'button';
   collapseAll.title = 'Collapse all fields';
   collapseAll.className = 'jsoneditor-collapse-all';
   collapseAll.onclick = function () {
@@ -696,6 +715,7 @@ treemode._createFrame = function () {
   if (this.history) {
     // create undo button
     var undo = document.createElement('button');
+    undo.type = 'button';
     undo.className = 'jsoneditor-undo jsoneditor-separator';
     undo.title = 'Undo last action (Ctrl+Z)';
     undo.onclick = function () {
@@ -706,6 +726,7 @@ treemode._createFrame = function () {
 
     // create redo button
     var redo = document.createElement('button');
+    redo.type = 'button';
     redo.className = 'jsoneditor-redo';
     redo.title = 'Redo (Ctrl+Shift+Z)';
     redo.onclick = function () {
@@ -737,6 +758,17 @@ treemode._createFrame = function () {
   // create search box
   if (this.options.search) {
     this.searchBox = new SearchBox(this, this.menu);
+  }
+
+  if(this.options.navigationBar) {
+    // create second menu row for treepath
+    this.navBar = document.createElement('div');
+    this.navBar.className = 'jsoneditor-navigation-bar nav-bar-empty';
+    this.frame.appendChild(this.navBar);
+
+    this.treePath = new TreePath(this.navBar);
+    this.treePath.onSectionSelected(this._onTreePathSectionSelected.bind(this));
+    this.treePath.onContextMenuItemSelected(this._onTreePathMenuItemSelected.bind(this));
   }
 };
 
@@ -774,26 +806,34 @@ treemode._onRedo = function () {
  * @private
  */
 treemode._onEvent = function (event) {
-  if (event.type == 'keydown') {
+  if (event.type === 'keydown') {
     this._onKeyDown(event);
   }
 
-  if (event.type == 'focus') {
+  if (event.type === 'focus') {
     this.focusTarget = event.target;
   }
 
-  if (event.type == 'mousedown') {
+  if (event.type === 'mousedown') {
     this._startDragDistance(event);
   }
-  if (event.type == 'mousemove' || event.type == 'mouseup' || event.type == 'click') {
+  if (event.type === 'mousemove' || event.type === 'mouseup' || event.type === 'click') {
     this._updateDragDistance(event);
   }
 
   var node = Node.getNodeFromTarget(event.target);
 
+  if (node && this.options && this.options.navigationBar && node && (event.type === 'keydown' || event.type === 'mousedown')) {
+    // apply on next tick, right after the new key press is applied
+    var me = this;
+    setTimeout(function () {
+      me._updateTreePath(node.getNodePath());
+    })
+  }
+
   if (node && node.selected) {
-    if (event.type == 'click') {
-      if (event.target == node.dom.menu) {
+    if (event.type === 'click') {
+      if (event.target === node.dom.menu) {
         this.showContextMenu(event.target);
 
         // stop propagation (else we will open the context menu of a single node)
@@ -806,20 +846,20 @@ treemode._onEvent = function (event) {
       }
     }
 
-    if (event.type == 'mousedown') {
+    if (event.type === 'mousedown') {
       // drag multiple nodes
       Node.onDragStart(this.multiselection.nodes, event);
     }
   }
   else {
-    if (event.type == 'mousedown') {
+    if (event.type === 'mousedown') {
       this.deselect();
 
-      if (node && event.target == node.dom.drag) {
+      if (node && event.target === node.dom.drag) {
         // drag a singe node
         Node.onDragStart(node, event);
       }
-      else if (!node || (event.target != node.dom.field && event.target != node.dom.value && event.target != node.dom.select)) {
+      else if (!node || (event.target !== node.dom.field && event.target !== node.dom.value && event.target !== node.dom.select)) {
         // select multiple nodes
         this._onMultiSelectStart(event);
       }
@@ -828,6 +868,75 @@ treemode._onEvent = function (event) {
 
   if (node) {
     node.onEvent(event);
+  }
+};
+
+/**
+ * Update TreePath components
+ * @param {Array<Node>} pathNodes list of nodes in path from root to selection 
+ * @private
+ */
+treemode._updateTreePath = function (pathNodes) {
+  if (pathNodes && pathNodes.length) {
+    util.removeClassName(this.navBar, 'nav-bar-empty');
+    
+    var pathObjs = [];
+    pathNodes.forEach(function (node) {
+      var pathObj = {
+        name: getName(node),
+        node: node,
+        children: []
+      }
+      if (node.childs && node.childs.length) {
+        node.childs.forEach(function (childNode) {
+          pathObj.children.push({
+            name: getName(childNode),
+            node: childNode
+          });
+        });
+      }
+      pathObjs.push(pathObj);
+    });
+    this.treePath.setPath(pathObjs);
+  } else {
+    util.addClassName(this.navBar, 'nav-bar-empty');
+  }
+
+  function getName(node) {
+    return node.field !== undefined
+        ? node._escapeHTML(node.field)
+        : (isNaN(node.index) ? node.type : node.index);
+  }
+};
+
+/**
+ * Callback for tree path section selection - focus the selected node in the tree
+ * @param {Object} pathObj path object that was represents the selected section node
+ * @private
+ */
+treemode._onTreePathSectionSelected = function (pathObj) {
+  if(pathObj && pathObj.node) {
+    pathObj.node.expandTo();
+    pathObj.node.focus();
+  }
+};
+
+/**
+ * Callback for tree path menu item selection - rebuild the path accrding to the new selection and focus the selected node in the tree
+ * @param {Object} pathObj path object that was represents the parent section node
+ * @param {String} selection selected section child
+ * @private
+ */
+treemode._onTreePathMenuItemSelected = function (pathObj, selection) {
+  if(pathObj && pathObj.children.length) {
+    var selectionObj = pathObj.children.find(function (obj) {
+      return obj.name === selection;
+    });
+    if(selectionObj && selectionObj.node) {
+      this._updateTreePath(selectionObj.node.getNodePath());
+      selectionObj.node.expandTo();
+      selectionObj.node.focus();
+    }
   }
 };
 
@@ -1047,7 +1156,9 @@ treemode._findTopLevelNodes = function (start, end) {
  */
 treemode._onKeyDown = function (event) {
   var keynum = event.which || event.keyCode;
+  var altKey = event.altKey;
   var ctrlKey = event.ctrlKey;
+  var metaKey = event.metaKey;
   var shiftKey = event.shiftKey;
   var handled = false;
 
@@ -1093,6 +1204,41 @@ treemode._onKeyDown = function (event) {
     }
   }
 
+  if ((this.options.autocomplete) && (!handled)) {
+      if (!ctrlKey && !altKey && !metaKey && (event.key.length == 1 || keynum == 8 || keynum == 46)) {
+          handled = false;
+          var jsonElementType = "";
+          if (event.target.className.indexOf("jsoneditor-value") >= 0) jsonElementType = "value";
+          if (event.target.className.indexOf("jsoneditor-field") >= 0) jsonElementType = "field";
+
+          var node = Node.getNodeFromTarget(event.target);
+          // Activate autocomplete
+          setTimeout(function (hnode, element) {
+              if (element.innerText.length > 0) {
+                  var result = this.options.autocomplete.getOptions(element.innerText, hnode.getPath(), jsonElementType, hnode.editor);
+                  if (typeof result.then === 'function') {
+                      // probably a promise
+                      if (result.then(function (obj) {
+                          if (obj.options)
+                              this.autocomplete.show(element, obj.startFrom, obj.options);
+                          else
+                              this.autocomplete.show(element, 0, obj);
+                      }.bind(this)));
+                  } else {
+                      // definitely not a promise
+                      if (result.options)
+                          this.autocomplete.show(element, result.startFrom, result.options);
+                      else
+                          this.autocomplete.show(element, 0, result);
+                  }
+              }
+              else
+                  this.autocomplete.hideDropDown();
+
+          }.bind(this, node, event.target), 50);
+      } 
+  }
+
   if (handled) {
     event.preventDefault();
     event.stopPropagation();
@@ -1106,6 +1252,9 @@ treemode._onKeyDown = function (event) {
 treemode._createTable = function () {
   var contentOuter = document.createElement('div');
   contentOuter.className = 'jsoneditor-outer';
+  if(this.options.navigationBar) {
+    util.addClassName(contentOuter, 'has-nav-bar');
+  }
   this.contentOuter = contentOuter;
 
   this.content = document.createElement('div');
@@ -1141,7 +1290,7 @@ treemode._createTable = function () {
 /**
  * Show a contextmenu for this node.
  * Used for multiselection
- * @param {HTMLElement} anchor   Anchor element to attache the context menu to.
+ * @param {HTMLElement} anchor   Anchor element to attach the context menu to.
  * @param {function} [onClose]   Callback method called when the context menu
  *                               is being closed.
  */

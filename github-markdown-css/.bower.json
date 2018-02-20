@@ -13,24 +13,18 @@
   ],
   "ignore": [
     "**/.*",
-    "component.json",
     "package.json",
-    "test.js",
-    "index.js",
-    "cli.js",
-    "index.html",
-    "screenshot.png",
-    "fixture.md"
+    "index.html"
   ],
   "homepage": "https://github.com/sindresorhus/github-markdown-css",
-  "version": "0.2.0",
-  "_release": "0.2.0",
+  "version": "2.10.0",
+  "_release": "2.10.0",
   "_resolution": {
     "type": "version",
-    "tag": "0.2.0",
-    "commit": "a6ef67c85af5354de8e6589b4c774c7c6b229043"
+    "tag": "v2.10.0",
+    "commit": "6f14c49c200003a585cffc34866cf6c892155f8c"
   },
   "_source": "https://github.com/sindresorhus/github-markdown-css.git",
-  "_target": "^0.2.0",
+  "_target": "^2.10.0",
   "_originalSource": "github-markdown-css"
 }
