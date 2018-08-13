@@ -4,8 +4,7 @@ ace.define("ace/ext/searchbox",["require","exports","module","ace/lib/dom","ace/
 var dom = require("../lib/dom");
 var lang = require("../lib/lang");
 var event = require("../lib/event");
-var searchboxCss = "\
-.ace_search {\
+var searchboxCss = ".ace_search {\
 background-color: #ddd;\
 color: #666;\
 border: 1px solid #cbcbcb;\
@@ -45,7 +44,6 @@ background-color: white;\
 color: black;\
 border: 1px solid #cbcbcb;\
 border-right: 0 none;\
-box-sizing: border-box!important;\
 outline: 0;\
 padding: 0;\
 font-size: inherit;\
@@ -54,6 +52,8 @@ line-height: inherit;\
 padding: 0 6px;\
 min-width: 17em;\
 vertical-align: top;\
+min-height: 1.8em;\
+box-sizing: content-box;\
 }\
 .ace_searchbtn {\
 border: 1px solid #cbcbcb;\
@@ -66,7 +66,6 @@ border-left: 1px solid #dcdcdc;\
 cursor: pointer;\
 margin: 0;\
 position: relative;\
-box-sizing: content-box!important;\
 color: #666;\
 }\
 .ace_searchbtn:last-child {\
@@ -195,6 +194,7 @@ var SearchBox = function(editor, range, showReplaceForm) {
 
     this.$init();
     this.setEditor(editor);
+    dom.importCssString(searchboxCss, "ace_searchbox", editor.container);
 };
 
 (function() {
@@ -503,6 +503,10 @@ exports.Search = function(editor, isReplace) {
 
 });
                 (function() {
-                    ace.require(["ace/ext/searchbox"], function() {});
+                    ace.require(["ace/ext/searchbox"], function(m) {
+                        if (typeof module == "object" && typeof exports == "object" && module) {
+                            module.exports = m;
+                        }
+                    });
                 })();
             
