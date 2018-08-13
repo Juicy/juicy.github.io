@@ -180,6 +180,10 @@ ace.define("ace/ext/keybinding_menu",["require","exports","module","ace/editor",
 
 });
                 (function() {
-                    ace.require(["ace/ext/keybinding_menu"], function() {});
+                    ace.require(["ace/ext/keybinding_menu"], function(m) {
+                        if (typeof module == "object" && typeof exports == "object" && module) {
+                            module.exports = m;
+                        }
+                    });
                 })();
             

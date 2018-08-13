@@ -3,6 +3,101 @@
 https://github.com/josdejong/jsoneditor
 
 
+## 2018-08-12, version 5.21.0
+
+- Show validation errors inline instead of at the bottom when in code
+  mode. Thanks @meirotstein.
+- Fix #562: allow `$` character in property names of of a JSON schema.
+
+
+## 2018-08-10, version 5.20.0
+
+_Good news: JSONEditor is finally framework friendly and can now be easily
+integrated in React, Vue, and Angular!_
+
+- Implemented new methods `update` and `updateText`, which maintain the state
+  of the editor (expanded nodes, search, selection). This makes it easy to
+  integrate in frameworks like React.
+- Implemented options `onChangeJSON(json)` and `onChangeText(jsonString)`.
+- Added two React examples to the `examples` folder.
+- Fixed menu buttons "Sort" and "Transform" being available in modes `view`
+  and `form`.
+
+
+## 2018-08-02, version 5.19.2
+
+- Fixed #558: scrolling to search results and automatically scrolling up/down
+  when dragging an item broken (regression since v5.19.1).
+
+
+## 2018-07-28, version 5.19.1
+
+- Fixed #557: inner contents of the scrollable area being displayed outside of
+  the editor (on Chrome only).
+
+
+## 2018-07-11, version 5.19.0
+
+- No more grayed out icons of the context menu, see #532.
+- Added Sort and Transform buttons to the main menu.
+- Fixes and improvements in the Transform dialog.
+
+
+## 2018-06-27, version 5.18.0
+
+- Implemented JMESPath support for advanced filtering, sorting, and
+  transforming of JSON documents.
+- Implemented a new option `modalAnchor` to control at which part of the
+  screen the modals are displayed.
+- Fixed #544: JSON Schema errors sometimes not being displayed in the
+  editor.
+
+
+## 2018-06-03, version 5.17.1
+
+- Fixed a bug in a translation text.
+
+
+## 2018-06-03, version 5.17.0
+
+- Implemented advanced sorting for arrays.
+
+
+## 2018-05-23, version 5.16.0
+
+- Better handling of JSON documents containing large arrays:
+  - Only displays the first 100 items of large arrays,
+    with buttons "show more" and "show all" to render more items.
+  - Search results are now limited to max 1000 matches,
+    and search does no longer expand the paths to all matches
+    but only expands the path of the current search result.
+- Fixed index numbers of Array items not being updated after sorting.
+
+
+## 2018-05-02, version 5.15.0
+
+- Implemented selection API: `onSelectionChanged`, `onTextSelectionChanged`,
+  `getSelection`, `getTextSelection`, `setSelection`, `setTextSelection`,
+  and `getNodesByRange`. Thanks @meirotstein.
+
+
+## 2018-03-21, version 5.14.1
+
+- Fixed absolute path of css image `jsoneditor-icons.svg`, which could.
+  give issues with webpack plugin "file-loader". Thanks @landru29.
+
+
+## 2018-02-25, version 5.14.0
+
+- Implemented support for translations. Thanks @mariohmol.
+- Fixed a bug sometimes occurring when dragging items from array to
+  object, see #509. Thanks @43081j.
+- Fixed autocomplete not accepting returned `null` values, see #512.
+  Thanks @43081j.
+- Fixed memory inefficiency when working with large JSON Schema's
+  generating many errors. Thanks @43081j.
+
+
 ## 2018-02-07, version 5.13.3
 
 - Fixed a positioning issue with JSON Schema errors in text/code mode.
@@ -644,7 +739,7 @@ https://github.com/josdejong/jsoneditor
 
 ## 2012-08-12, version 1.2.0
 
-- New: Added search functionality. Search results are expanded and highlighed.
+- New: Added search functionality. Search results are expanded and highlighted.
   Quickkeys in the search box: Enter (next), Shift+Enter (previous), Ctrl+Enter
   (search again).
 - New: The position of the vertical separator between left and right panel is
@@ -691,7 +786,7 @@ https://github.com/josdejong/jsoneditor
 ## 2012-03-01, version 0.9.10
 
 - Nicer looking select box for the field types, with icons.
-- Improved drag and drop: better visualized, and now working in all browers.
+- Improved drag and drop: better visualized, and now working in all browsers.
 - Previous values will be restored after changing the type of a field. When
   changing the type back, the previous value or childs will be restored.
 - When hovering buttons (fieldtype, duplicate, delete, add) or when dragging
@@ -724,7 +819,7 @@ https://github.com/josdejong/jsoneditor
 
 ## 2012-01-09, version 0.9.7
 
-- Added functionallity to expand/collapse a node and all its childs. Click
+- Added functionality to expand/collapse a node and all its childs. Click
   the expand button of a node while holding Ctrl down.
 - Small interface improvements
 
