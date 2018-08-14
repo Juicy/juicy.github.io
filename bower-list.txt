@@ -1,0 +1,38 @@
+bower check-new     Checking for new versions of the project dependencies...
+JuicyDeps C:\Work\Starcounter\juicy\juicy.github.io
+├── ace-builds#1.4.1
+├── array.observe#0.0.1
+├── d3#4.13.0 (latest is 5.5.0)
+├── fast-json-patch#2.0.6
+├── github-markdown-css#2.10.0
+├── highlightjs#9.12.0
+├─┬ iron-ajax#2.1.3
+│ └─┬ polymer#2.6.0 (latest is 3.0.5)
+│   ├── shadycss#1.4.0
+│   └── webcomponentsjs#1.2.4 (latest is 2.0.4)
+├─┬ iron-icon#2.1.0
+│ ├─┬ iron-flex-layout#2.0.3
+│ │ └── polymer#2.6.0
+│ ├─┬ iron-meta#2.1.1
+│ │ └── polymer#2.6.0
+│ └── polymer#2.6.0
+├─┬ iron-iconset-svg#2.2.1
+│ ├─┬ iron-meta#2.1.1
+│ │ └── polymer#2.6.0
+│ └── polymer#2.6.0
+├── jsoneditor#5.21.0 (5.22.0 available)
+├── marked#0.3.19 (latest is 0.4.0)
+├── object.observe#0.2.6
+├─┬ polymer#2.6.0 (latest is 3.0.5)
+│ ├── shadycss#1.4.0
+│ └── webcomponentsjs#1.2.4
+└─┬ web-component-tester#6.6.0-pre.5
+  ├── accessibility-developer-tools#2.12.0
+  ├── async#1.5.2 (latest is 2.6.1)
+  ├── chai#3.5.0 (latest is 4.1.2)
+  ├── lodash#3.10.1 (3.11.0-npm-packages available, latest is 4.17.10)
+  ├── mocha#3.5.3 (latest is 5.2.0)
+  ├── sinon-chai#2.14.0 (latest is 3.2.0)
+  ├── sinonjs#1.17.1
+  ├── stacky#1.3.2
+  └── test-fixture#3.0.0

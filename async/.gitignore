@@ -1,0 +1,3 @@
+# ignore package.json of bower packages
+/**/package.json
+/**/package-lock.json
